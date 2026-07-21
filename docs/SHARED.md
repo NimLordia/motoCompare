@@ -6,7 +6,8 @@ Format: `symbol(signature)` — path — one-line purpose.
 
 ## Backend — utilities
 
-*(nothing yet)*
+- `get_settings() -> Settings` — backend/app/config.py — cached pydantic-settings (env prefix `MOTO_`, reads `.env`)
+- `Base` / `SessionLocal` / `get_db()` — backend/app/db.py — declarative base with naming conventions, session factory, FastAPI session dependency
 
 ## Backend — services & types
 

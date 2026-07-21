@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: moto
       POSTGRES_DB: motocompare
     ports:
-      - "5432:5432"
+      # Host port 5433: 5432 is a common collision with other local Postgres instances.
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
