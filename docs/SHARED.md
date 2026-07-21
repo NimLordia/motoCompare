@@ -18,6 +18,7 @@ Format: `symbol(signature)` — path — one-line purpose.
 - `register_pending_research_provider(fn)` — backend/app/catalog/service.py — hook the research module uses to surface in-flight research in `data_coverage`
 - `SourceType` / `ValueType` / `SOURCE_TIER_PRIORITY` — backend/app/catalog/models.py — source tier enum + resolution order
 - `SPEC_DEFINITIONS` / `CORE_SPEC_KEYS` / `INSIGHT_TOPICS` — backend/app/catalog/registry.py — code bootstrap of the spec registry and topic list
+- `db` / `make_bike` fixtures — backend/tests/conftest.py — in-memory SQLite session with seeded registry + bike factory; reuse in any backend test
 
 ## Frontend — components
 
