@@ -41,6 +41,10 @@ Facts:
 - ~~Fuzzy-matching approach for `resolve_bike` (pg_trgm vs. application-side scoring).~~ Resolved: application-side token scoring — see DECISIONS 2026-07-21.
 - ~~Final list of core specs and insight topics.~~ Resolved: 13 spec definitions (8 core) and six insight topics in `backend/app/catalog/registry.py` — see DECISIONS 2026-07-21.
 
+## Code map
+
+`backend/app/catalog/` — `models.py` (tables), `registry.py` (spec/topic bootstrap), `units.py` (conversion), `service.py` (public interface), `schemas.py` (API payloads), `router.py` (REST, mounted at `/api/catalog`), `seed.py` (demo data). Tests in `backend/tests/`.
+
 ## Status
 
-Spec drafted, no code.
+Implemented (v1): schema + Alembic migration, service layer, REST endpoints, idempotent seed, 51 tests. `data_coverage` reports research as pending only once the research module registers its provider hook.

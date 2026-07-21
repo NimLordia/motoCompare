@@ -13,6 +13,22 @@ A personalized motorcycle platform with a self-filling, source-aware specificati
 
 React (Vite + TypeScript) · FastAPI · LangGraph · PostgreSQL · Claude API
 
+## Running locally
+
+Backend (Python ≥ 3.12, Docker):
+
+```bash
+docker compose up -d                 # PostgreSQL 16 on localhost:5433
+cd backend
+python -m venv .venv && .venv/Scripts/activate   # or: uv venv && uv sync
+pip install -e ".[dev]"
+alembic upgrade head                 # create the schema
+python -m app.catalog.seed           # registry + demo bikes (safe to rerun)
+uvicorn app.main:app --reload        # API on http://localhost:8000, docs at /docs
+```
+
+Tests run without any infrastructure: `pytest` (in-memory SQLite).
+
 ## Status
 
-🚧 In development — architecture and module specs live in [docs/](docs/SCOPE.md).
+🚧 In development — catalog module implemented; architecture and module specs live in [docs/](docs/SCOPE.md).

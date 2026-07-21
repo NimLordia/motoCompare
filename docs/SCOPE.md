@@ -16,7 +16,7 @@ A personalized motorcycle platform backed by a growing, source-aware database. U
 
 | Module | Spec | Responsibility | Status |
 |---|---|---|---|
-| catalog | [modules/catalog.md](modules/catalog.md) | Bike identity, spec registry, facts + insights storage, browsing API, unit conversion | spec drafted |
+| catalog | [modules/catalog.md](modules/catalog.md) | Bike identity, spec registry, facts + insights storage, browsing API, unit conversion | implemented (v1) |
 | research | [modules/research.md](modules/research.md) | Missing-data pipeline for specs and insights, failure taxonomy, bike auto-population | spec drafted |
 | profile | [modules/profile.md](modules/profile.md) | Personal area: preferences, garage, dream bikes | spec drafted |
 | chat | [modules/chat.md](modules/chat.md) | Assistant feature: LangGraph agent, tools, streaming | spec drafted |
@@ -39,4 +39,6 @@ docker-compose.yml   PostgreSQL for local development
 
 ## Current status
 
-2026-07-21 — Planning v2 complete after product pivot: platform-first, chat as one feature. Qualitative insights, failure taxonomy, and auto-population added to the design. No code yet; next step is backend scaffold + catalog schema.
+2026-07-21 — Planning v2 complete after product pivot: platform-first, chat as one feature. Qualitative insights, failure taxonomy, and auto-population added to the design.
+
+2026-07-21 — Backend scaffold and catalog module implemented: schema + migration, service layer, browsing API, seeds, 51 tests. Next: research module (the catalog's `register_pending_research_provider` hook and upserts are its integration points).
