@@ -57,3 +57,9 @@ Why: the discrepancy itself is useful information (claimed vs. dyno horsepower);
 
 **2026-07-21 — Core spec set drives auto-population.**
 Why: `spec_definitions.is_core` marks what every bike page needs; opening an under-populated model triggers `populate_bike`, which uses page-level extraction (mine every core fact from each validated source) so populating a bike costs a few searches, not one per fact.
+
+**2026-07-21 — v1 spec registry: 13 definitions (8 core) and six insight topics, defined in code and seeded to the DB.**
+Why: `backend/app/catalog/registry.py` is the bootstrap source (tests and seeds build from it); the `spec_definitions` table is the runtime truth the API validates against. Core: engine_type, displacement, power_peak, torque_peak, wet_weight, seat_height, fuel_capacity, top_speed. Non-core: compression_ratio, dry_weight, wheelbase, acceleration_0_100, fuel_consumption. Insight topics: heat, comfort, maintenance, electronics, reliability, real_world_performance — all six count toward coverage. Adding a spec = one line in registry.py + rerun the idempotent seed; no migration.
+
+**2026-07-21 — Unit tests run on in-memory SQLite; models stay dual-dialect.**
+Why: fast, infrastructure-free tests and trivial CI. Cost: model columns must work on both dialects, so `insights.source_urls` is JSON (JSONB variant on PostgreSQL) rather than ARRAY, and enums are portable VARCHARs. Migrations remain PostgreSQL-only; `alembic check` guards model↔migration parity.
