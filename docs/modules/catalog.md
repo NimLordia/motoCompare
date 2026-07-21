@@ -38,7 +38,7 @@ Facts:
 ## Open TODOs
 
 - Seed strategy: initial dataset of common bikes so the demo isn't an empty database.
-- Fuzzy-matching approach for `resolve_bike` (pg_trgm vs. application-side scoring).
+- ~~Fuzzy-matching approach for `resolve_bike` (pg_trgm vs. application-side scoring).~~ Resolved: application-side token scoring — see DECISIONS 2026-07-21.
 - ~~Final list of core specs and insight topics.~~ Resolved: 13 spec definitions (8 core) and six insight topics in `backend/app/catalog/registry.py` — see DECISIONS 2026-07-21.
 
 ## Status

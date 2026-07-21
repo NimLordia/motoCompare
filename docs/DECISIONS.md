@@ -61,5 +61,8 @@ Why: `spec_definitions.is_core` marks what every bike page needs; opening an und
 **2026-07-21 — v1 spec registry: 13 definitions (8 core) and six insight topics, defined in code and seeded to the DB.**
 Why: `backend/app/catalog/registry.py` is the bootstrap source (tests and seeds build from it); the `spec_definitions` table is the runtime truth the API validates against. Core: engine_type, displacement, power_peak, torque_peak, wet_weight, seat_height, fuel_capacity, top_speed. Non-core: compression_ratio, dry_weight, wheelbase, acceleration_0_100, fuel_consumption. Insight topics: heat, comfort, maintenance, electronics, reliability, real_world_performance — all six count toward coverage. Adding a spec = one line in registry.py + rerun the idempotent seed; no migration.
 
+**2026-07-21 — `resolve_bike` fuzzy matching is application-side token scoring, not pg_trgm.**
+Why: the dominant query shape is short aliases ("R7", "mt07"), and trigram similarity collapses on 2–4 character queries against full names like "Yamaha YZF-R7 2023". Token-level scoring (exact > containment > difflib ratio, with noise floors) handles hyphen splits (YZF-R7 → r7) naturally, is unit-testable on SQLite, and is cheap at catalog scale (thousands of variants, scored in-process). Supersede with pg_trgm + GIN if the catalog ever outgrows in-process scoring.
+
 **2026-07-21 — Unit tests run on in-memory SQLite; models stay dual-dialect.**
 Why: fast, infrastructure-free tests and trivial CI. Cost: model columns must work on both dialects, so `insights.source_urls` is JSON (JSONB variant on PostgreSQL) rather than ARRAY, and enums are portable VARCHARs. Migrations remain PostgreSQL-only; `alembic check` guards model↔migration parity.

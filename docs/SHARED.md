@@ -11,7 +11,13 @@ Format: `symbol(signature)` — path — one-line purpose.
 
 ## Backend — services & types
 
-*(nothing yet)*
+- `units.convert(value, from_unit, to_unit)` — backend/app/catalog/units.py — pure conversion (linear pairs + reciprocal L/100km↔mpg); raises `UnknownConversionError`
+- `units.display_unit(canonical_unit, unit_system)` — backend/app/catalog/units.py — canonical → display unit per unit system ("metric"/"imperial")
+- catalog service (`list_manufacturers/list_models/list_variants/resolve_bike/data_coverage/get_specs/compare/get_insights/get_bike_detail/upsert_spec_value/upsert_insight`) — backend/app/catalog/service.py — the catalog public interface; other modules go through these, never raw SQL
+- `CatalogNotFoundError` / `CatalogValidationError` — backend/app/catalog/service.py — service exceptions, mapped to 404/422 by app-level handlers in main.py
+- `register_pending_research_provider(fn)` — backend/app/catalog/service.py — hook the research module uses to surface in-flight research in `data_coverage`
+- `SourceType` / `ValueType` / `SOURCE_TIER_PRIORITY` — backend/app/catalog/models.py — source tier enum + resolution order
+- `SPEC_DEFINITIONS` / `CORE_SPEC_KEYS` / `INSIGHT_TOPICS` — backend/app/catalog/registry.py — code bootstrap of the spec registry and topic list
 
 ## Frontend — components
 
@@ -23,4 +29,4 @@ Format: `symbol(signature)` — path — one-line purpose.
 
 ## Shared contracts (API payload types)
 
-*(nothing yet)*
+- `Fact`, `Coverage`, `BikeCandidate`, `ComparisonMatrix`/`Row`/`Cell`, `BikeDetail`, `InsightOut`, `ManufacturerOut`/`ModelOut`/`VariantOut` — backend/app/catalog/schemas.py — Pydantic payloads returned by the catalog API; the frontend mirrors these
