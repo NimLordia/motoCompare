@@ -1,0 +1,46 @@
+# Module: catalog
+
+## Responsibility
+
+Motorcycle identity, the spec registry, source-aware storage of facts and insights, the browsing API, and unit conversion. This module owns the truth; every other module reads bikes and their data through it.
+
+## Data owned
+
+- `manufacturers` — id, name
+- `models` — id, manufacturer_id, name (e.g. "YZF-R7")
+- `motorcycles` — id, model_id, year, trim, market. One row = one identifiable variant.
+- `spec_definitions` — the registry: key (e.g. `power_peak`), canonical_unit (e.g. `kW`), value_type, category (engine/chassis/performance/…), **is_core** (part of the auto-population set every bike page needs). Single source of truth for what specs exist and how they are stored.
+- `spec_values` — the quantitative fact table: motorcycle_id, spec_key, value, source_type (`official | tested | community | estimated`), source_url, source_note, retrieved_at. **Unique on (motorcycle_id, spec_key, source_type)** — official and measured values coexist by design.
+- `insights` — the qualitative fact table: motorcycle_id, topic (`heat | comfort | maintenance | electronics | reliability | real_world_performance | …`), summary, source_type (`community | tested`), source_urls[], retrieved_at. Unique on (motorcycle_id, topic). One researched, source-linked summary per topic per bike.
+
+Canonical unit examples: power kW, torque Nm, mass kg, speed km/h, length mm, volume L, time s, displacement cc.
+
+## Public interface
+
+Browsing (backs the web catalog):
+- `list_manufacturers()` / `list_models(manufacturer_id)` / `list_variants(model_id)`
+- `resolve_bike(query: str, market: str | None) -> list[BikeCandidate]` — fuzzy text → ranked variants ("R7" → Yamaha YZF-R7 2023 EU), with confidence; the caller decides whether to disambiguate.
+- `data_coverage(bike_id) -> Coverage` — which core specs and insight topics are present vs. missing (and whether research is pending). Web uses this to decide when to trigger population and to render "researching…" states.
+
+Facts:
+- `get_specs(bike_id, keys | None, unit_system) -> list[Fact]` — values converted to the requested units, **all source tiers present returned**, resolved display order official > tested > community > estimated.
+- `compare(bike_ids, keys | None, unit_system) -> ComparisonMatrix` — aligned facts across bikes with per-cell provenance and explicit `missing` markers.
+- `get_insights(bike_id, topics | None) -> list[Insight]`
+- `upsert_spec_value(...)` / `upsert_insight(...)` — validate against the registry / topic list, convert to canonical units, write. **The research module is the only external writer of both.**
+- `units.convert(value, from_unit, to_unit)` — pure function, used only inside this module.
+
+## Boundaries
+
+- Does NOT search the web or fill missing data — that is [research](research.md).
+- Does NOT phrase answers or decide presentation — that is [chat](chat.md) / [web](web.md).
+- No other module converts units or writes `spec_values`/`insights` directly.
+
+## Open TODOs
+
+- Seed strategy: initial dataset of common bikes so the demo isn't an empty database.
+- Fuzzy-matching approach for `resolve_bike` (pg_trgm vs. application-side scoring).
+- Final list of core specs and insight topics.
+
+## Status
+
+Spec drafted, no code.
