@@ -38,7 +38,10 @@ The enum lives in code; new reasons are added there and reflected here.
 
 - `request_research(bike_id, kind, fact_key) -> ResearchTask` — idempotent; returns the existing task (or its memoized failure) if present and not past `recheck_after`.
 - `populate_bike(bike_id) -> list[ResearchTask]`
-- `get_task(task_id)` / `get_tasks_for_bike(bike_id)` — status for UI polling.
+- `get_task(task_id)` / `get_tasks_for_bike(bike_id)` — status for UI polling. Polling doubles as the retry pump: due retries and stale `searching` tasks (crashed runs, reclaimed after 10 min) are re-dispatched here, so no scheduler exists.
+- `wait_for_research(bike_id, timeout) -> bool` — chat's inline-await hook; False means research continues in the background.
+- `pending_research_for_bike(bike_id)` — registered as catalog's pending-research provider at app startup, so `data_coverage` reports in-flight research.
+- REST (mounted at `/api/research`): `POST /bikes/{id}/populate`, `POST /bikes/{id}/tasks`, `GET /bikes/{id}/tasks`, `GET /tasks/{id}`.
 
 ## UX contracts
 
@@ -53,10 +56,14 @@ The enum lives in code; new reasons are added there and reflected here.
 
 ## Open TODOs
 
-- Search provider (Claude API web search tool vs. external search API).
-- Background execution mechanism (FastAPI BackgroundTasks vs. worker) — simplest that satisfies both UX contracts.
-- Source-quality heuristics per insight topic.
+- ~~Search provider (Claude API web search tool vs. external search API).~~ Resolved: Claude API web search tool, two-phase (search → structured extraction) — see DECISIONS 2026-07-22.
+- ~~Background execution mechanism (FastAPI BackgroundTasks vs. worker) — simplest that satisfies both UX contracts.~~ Resolved: in-process thread pool + poll-as-retry-pump — see DECISIONS 2026-07-22.
+- Source-quality heuristics per insight topic (v1 uses the shared domain→tier map for all topics; refine per topic if research quality demands it).
+
+## Code map
+
+`backend/app/research/` — `models.py` (research_tasks table, failure taxonomy, retry policy), `tiering.py` (domain→tier map), `provider.py` (SearchProvider protocol + ClaudeSearchProvider), `runner.py` (batched pipeline: dedup-checked execution, validation, conflict detection, writes via catalog), `executor.py` (thread-pool dispatcher with inline-await), `service.py` (public interface), `schemas.py`/`router.py` (REST at `/api/research`). Wiring (dispatcher + coverage hook) happens in `app/main.py`'s lifespan. Tests in `backend/tests/test_research_*.py` and `test_tiering.py`.
 
 ## Status
 
-Spec drafted, no code.
+Implemented (v1): schema + migration, two-phase Claude provider, batched runner with full failure taxonomy, background executor, REST endpoints, 65 tests. Same-tier conflict tolerance and provider model/attempts/workers are `MOTO_`-prefixed settings.

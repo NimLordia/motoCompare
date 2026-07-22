@@ -27,7 +27,7 @@ Facts:
 - `compare(bike_ids, keys | None, unit_system) -> ComparisonMatrix` — aligned facts across bikes with per-cell provenance and explicit `missing` markers.
 - `get_insights(bike_id, topics | None) -> list[Insight]`
 - `upsert_spec_value(...)` / `upsert_insight(...)` — validate against the registry / topic list, convert to canonical units, write. **The research module is the only external writer of both.**
-- `units.convert(value, from_unit, to_unit)` — pure function, used only inside this module.
+- `units.convert(value, from_unit, to_unit)` — pure function. Conversion to display units happens only inside this module; research also calls it to normalize candidate values to canonical units before its conflict checks.
 
 ## Boundaries
 

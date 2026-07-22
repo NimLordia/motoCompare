@@ -27,8 +27,10 @@ python -m app.catalog.seed           # registry + demo bikes (safe to rerun)
 uvicorn app.main:app --reload        # API on http://localhost:8000, docs at /docs
 ```
 
+For live research (auto-populating spec sheets via Claude web search), set `MOTO_ANTHROPIC_API_KEY` (or a plain `ANTHROPIC_API_KEY`) before starting the API. Without a key everything else works; research tasks retry and land as `failed / retries_exhausted`.
+
 Tests run without any infrastructure: `pytest` (in-memory SQLite).
 
 ## Status
 
-🚧 In development — catalog module implemented; architecture and module specs live in [docs/](docs/SCOPE.md).
+🚧 In development — catalog and research modules implemented; architecture and module specs live in [docs/](docs/SCOPE.md).
