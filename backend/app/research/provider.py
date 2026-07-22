@@ -122,7 +122,7 @@ class GeminiSearchProvider:
     never from model memory.
     """
 
-    def __init__(self, api_key: str | None = None, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str | None = None, model: str = "gemini-3.6-flash"):
         self._api_key = api_key
         self._model = model
         self._client: genai.Client | None = None
