@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 from app.catalog import service as catalog_service
 from app.catalog.models import Motorcycle, SpecDefinition
 from app.catalog.registry import INSIGHT_TOPICS
+from app.db import ensure_utc
 from app.research import runner
-from app.research.models import ResearchKind, ResearchTask, ResearchTaskState, ensure_utc
+from app.research.models import ResearchKind, ResearchTask, ResearchTaskState
 
 
 class ResearchNotFoundError(LookupError):

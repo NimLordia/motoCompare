@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from enum import StrEnum
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint
@@ -45,14 +45,6 @@ EXECUTION_BACKOFF: tuple[timedelta, ...] = (
     timedelta(minutes=10),
     timedelta(hours=1),
 )
-
-
-def ensure_utc(moment: datetime | None) -> datetime | None:
-    # SQLite returns timezone-aware columns as naive datetimes; normalize before
-    # comparing against datetime.now(UTC).
-    if moment is None or moment.tzinfo is not None:
-        return moment
-    return moment.replace(tzinfo=UTC)
 
 
 class ResearchTask(Base):

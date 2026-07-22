@@ -8,6 +8,7 @@ Format: `symbol(signature)` — path — one-line purpose.
 
 - `get_settings() -> Settings` — backend/app/config.py — cached pydantic-settings (env prefix `MOTO_`, reads `.env`)
 - `Base` / `SessionLocal` / `get_db()` — backend/app/db.py — declarative base with naming conventions, session factory, FastAPI session dependency
+- `ensure_utc(dt)` — backend/app/db.py — naive→UTC normalizer for timezone-aware columns read from SQLite; use before comparing or serializing stored datetimes
 
 ## Backend — services & types
 
@@ -20,7 +21,7 @@ Format: `symbol(signature)` — path — one-line purpose.
 - `SPEC_DEFINITIONS` / `CORE_SPEC_KEYS` / `INSIGHT_TOPICS` — backend/app/catalog/registry.py — code bootstrap of the spec registry and topic list
 - research service (`request_research/populate_bike/get_task/get_tasks_for_bike/wait_for_research/pending_research_for_bike/configure_dispatcher`) — backend/app/research/service.py — the research public interface
 - `ResearchNotFoundError` / `ResearchValidationError` — backend/app/research/service.py — service exceptions, mapped to 404/422 in main.py
-- `ResearchKind` / `ResearchTaskState` / `FailureReason` / `FAILURE_COOLDOWNS` / `ensure_utc(dt)` — backend/app/research/models.py — task enums, retry policy, naive→UTC normalizer for SQLite-read datetimes
+- `ResearchKind` / `ResearchTaskState` / `FailureReason` / `FAILURE_COOLDOWNS` — backend/app/research/models.py — task enums and retry policy
 - `SearchProvider` protocol + `SpecRequest`/`SpecFinding`/`InsightFinding`/`ResearchFindings` + `ResearchExecutionError` — backend/app/research/provider.py — the pluggable research-provider contract
 - `GeminiSearchProvider` — backend/app/research/provider.py — two-phase Gemini implementation (Google Search grounding → JSON-schema extraction, with redirect-resolved source URLs)
 - `classify_source_tier(url)` / `is_valid_source_url(url)` — backend/app/research/tiering.py — domain→tier map and URL sanity check

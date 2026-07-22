@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.catalog import service as catalog_service
 from app.catalog import units
 from app.catalog.models import SOURCE_TIER_PRIORITY, SourceType, SpecDefinition, ValueType
+from app.db import ensure_utc
 from app.research import tiering
 from app.research.models import (
     EXECUTION_BACKOFF,
@@ -16,7 +17,6 @@ from app.research.models import (
     ResearchKind,
     ResearchTask,
     ResearchTaskState,
-    ensure_utc,
 )
 from app.research.provider import (
     InsightFinding,

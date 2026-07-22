@@ -4,8 +4,9 @@ import pytest
 
 from app.catalog import service as catalog_service
 from app.catalog.models import SourceType
+from app.db import ensure_utc
 from app.research import service
-from app.research.models import FailureReason, ResearchTaskState, ensure_utc
+from app.research.models import FailureReason, ResearchTaskState
 from app.research.provider import (
     InsightFinding,
     ResearchExecutionError,
