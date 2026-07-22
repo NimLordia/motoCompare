@@ -56,14 +56,14 @@ The enum lives in code; new reasons are added there and reflected here.
 
 ## Open TODOs
 
-- ~~Search provider (Claude API web search tool vs. external search API).~~ Resolved: Claude API web search tool, two-phase (search → structured extraction) — see DECISIONS 2026-07-22.
+- ~~Search provider (Claude API web search tool vs. external search API).~~ Resolved: Gemini API with Google Search grounding, two-phase (grounded search → JSON-schema extraction); source URLs come from grounding metadata with redirects resolved to the real pages — see DECISIONS 2026-07-22.
 - ~~Background execution mechanism (FastAPI BackgroundTasks vs. worker) — simplest that satisfies both UX contracts.~~ Resolved: in-process thread pool + poll-as-retry-pump — see DECISIONS 2026-07-22.
 - Source-quality heuristics per insight topic (v1 uses the shared domain→tier map for all topics; refine per topic if research quality demands it).
 
 ## Code map
 
-`backend/app/research/` — `models.py` (research_tasks table, failure taxonomy, retry policy), `tiering.py` (domain→tier map), `provider.py` (SearchProvider protocol + ClaudeSearchProvider), `runner.py` (batched pipeline: dedup-checked execution, validation, conflict detection, writes via catalog), `executor.py` (thread-pool dispatcher with inline-await), `service.py` (public interface), `schemas.py`/`router.py` (REST at `/api/research`). Wiring (dispatcher + coverage hook) happens in `app/main.py`'s lifespan. Tests in `backend/tests/test_research_*.py` and `test_tiering.py`.
+`backend/app/research/` — `models.py` (research_tasks table, failure taxonomy, retry policy), `tiering.py` (domain→tier map), `provider.py` (SearchProvider protocol + GeminiSearchProvider), `runner.py` (batched pipeline: dedup-checked execution, validation, conflict detection, writes via catalog), `executor.py` (thread-pool dispatcher with inline-await), `service.py` (public interface), `schemas.py`/`router.py` (REST at `/api/research`). Wiring (dispatcher + coverage hook) happens in `app/main.py`'s lifespan. Tests in `backend/tests/test_research_*.py` and `test_tiering.py`.
 
 ## Status
 
-Implemented (v1): schema + migration, two-phase Claude provider, batched runner with full failure taxonomy, background executor, REST endpoints, 65 tests. Same-tier conflict tolerance and provider model/attempts/workers are `MOTO_`-prefixed settings.
+Implemented (v1): schema + migration, two-phase Gemini provider (Google Search grounding → JSON-schema extraction; grounding redirects resolved so stored source URLs are the real pages), batched runner with full failure taxonomy, background executor, REST endpoints, 69 tests. Same-tier conflict tolerance and provider model/attempts/workers are `MOTO_`-prefixed settings.

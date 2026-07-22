@@ -34,7 +34,7 @@ Why: all server logic lives in Python, so Next.js's server features would be red
 **2026-07-21 — No auth in v1.**
 Why: single local profile; fastest path to the differentiating features. Every table carries `user_id` from day one so adding auth later is a migration, not a rewrite.
 
-**2026-07-21 — LangGraph tool-calling agent; Claude API via `langchain-anthropic`, swappable behind config.**
+**2026-07-21 — LangGraph tool-calling agent; Claude API via `langchain-anthropic`, swappable behind config.** *Superseded 2026-07-22: the project's LLM provider is now Gemini.*
 Why: LangGraph is the current LangChain idiom for agent loops; provider kept behind config so the demo isn't locked to one vendor.
 
 **2026-07-21 — Monorepo: `/backend`, `/frontend`, docker-compose for Postgres.**
@@ -70,7 +70,7 @@ Why: the dominant query shape is short aliases ("R7", "mt07"), and trigram simil
 **2026-07-21 — Unit tests run on in-memory SQLite; models stay dual-dialect.**
 Why: fast, infrastructure-free tests and trivial CI. Cost: model columns must work on both dialects, so `insights.source_urls` is JSON (JSONB variant on PostgreSQL) rather than ARRAY, and enums are portable VARCHARs. Migrations remain PostgreSQL-only; `alembic check` guards model↔migration parity.
 
-**2026-07-22 — Research search provider: Claude API web search tool, in two phases (search → structured extraction).**
+**2026-07-22 — Research search provider: Claude API web search tool, in two phases (search → structured extraction).** *Superseded later the same day: the provider is now Gemini; the two-phase design carries over.*
 Why: the stack already carries the Claude dependency, so no second search vendor or API key is needed, and the server-side tool handles crawling and citation. Phase one gathers source-cited notes with the web search tool (one pass mines every requested fact — the page-level extraction contract); phase two turns those notes into typed JSON with a structured-output call. Splitting the phases keeps each API call on a documented feature combination and makes parsing schema-guaranteed instead of prompt-hopeful. The provider sits behind a `SearchProvider` protocol, so swapping it is one class.
 
 **2026-07-22 — Research background execution: in-process thread pool; polling doubles as the retry pump.**
@@ -78,3 +78,6 @@ Why: the simplest mechanism satisfying both UX contracts. A small `ThreadPoolExe
 
 **2026-07-22 — Source tier classified from a domain→tier map in code; same-tier numeric conflicts beyond 15% are memoized, lower-tier conflicts only discredit that tier.**
 Why: manufacturer domains → `official`, known test publications → `tested`, everything else with a verifiable URL → `community` — a reviewable allowlist beats model self-labeling. Conflict rule: after canonical-unit conversion, same-tier values whose spread exceeds 15% of their mean are `unresolved_conflict` when they are the best tier (the discrepancy is flagged, nothing stored); a conflicted *lower* tier is simply skipped so forum noise can't block an official value. Agreement stores the median candidate, keeping value and source URL paired. Research never writes `estimated` — deriving values would violate "never fabricates".
+
+**2026-07-22 — Gemini is the project's LLM provider; research runs on Google Search grounding + JSON-schema output. (Supersedes the Claude provider decision from earlier today and the `langchain-anthropic` part of the chat decision.)**
+Why: the project runs on a Gemini API key. The two-phase research design carries over unchanged behind the same `SearchProvider` protocol — phase one grounds a research pass in Google Search, phase two extracts typed findings with a `response_schema`-constrained call (Gemini cannot combine search grounding with JSON mode in one request, so the split is now load-bearing, not just tidy). One Gemini-specific addition: grounded citations arrive as expiring Google redirect URLs in metadata, not as text, so the provider inserts citation markers from `grounding_supports` and resolves each redirect (a single non-following HEAD to Google) into a verified source list that extraction copies URLs from — provenance comes from search metadata, never model memory. Default model `gemini-2.5-flash` (free tier, supports both features), overridable via `MOTO_RESEARCH_MODEL`. Chat, when built, uses `langchain-google-genai`.

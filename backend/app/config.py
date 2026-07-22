@@ -8,12 +8,11 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://moto:moto@localhost:5433/motocompare"
 
-    # Research pipeline. Without MOTO_ANTHROPIC_API_KEY the Claude SDK falls back
-    # to its own credential resolution (ANTHROPIC_API_KEY etc.).
-    anthropic_api_key: str | None = None
-    research_model: str = "claude-opus-4-8"
+    # Research pipeline. Without MOTO_GEMINI_API_KEY the Gemini SDK falls back
+    # to its own credential resolution (GEMINI_API_KEY / GOOGLE_API_KEY).
+    gemini_api_key: str | None = None
+    research_model: str = "gemini-2.5-flash"
     research_max_attempts: int = 3
-    research_max_web_searches: int = 8
     research_workers: int = 2
     # Same-tier numeric sources whose spread exceeds this fraction of their mean
     # are an unresolved conflict.

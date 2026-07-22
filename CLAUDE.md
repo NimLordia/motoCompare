@@ -2,7 +2,7 @@
 
 Motorcycle research platform over a growing, source-aware database: a personal area (garage, dream bikes, preferences), a browsable global catalog that self-fills via an AI research agent, side-by-side comparison, and a grounded assistant chat as one menu feature.
 
-Stack: React (Vite + TypeScript) · FastAPI · LangGraph/LangChain · PostgreSQL · Claude API
+Stack: React (Vite + TypeScript) · FastAPI · LangGraph/LangChain · PostgreSQL · Gemini API
 
 ## Documentation map — read only what the task needs
 

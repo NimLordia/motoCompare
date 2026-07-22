@@ -2,11 +2,11 @@ import json
 from datetime import date
 from types import SimpleNamespace
 
-import anthropic
 import pytest
+from google.genai import errors as genai_errors
 
 from app.research.provider import (
-    ClaudeSearchProvider,
+    GeminiSearchProvider,
     ResearchExecutionError,
     SpecRequest,
     findings_from_payload,
@@ -18,6 +18,9 @@ SPEC_REQUESTS = [
 ]
 TOPICS = ["heat"]
 
+OFFICIAL_URL = "https://www.yamaha-motor.eu/gb/en/products/motorcycles/yzf-r7/"
+REDIRECT_URL = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/abc123"
+
 EXTRACTION_PAYLOAD = {
     "spec_findings": [
         {
@@ -25,7 +28,7 @@ EXTRACTION_PAYLOAD = {
             "value_number": 54.0,
             "value_text": None,
             "unit": "kW",
-            "source_url": "https://www.yamaha-motor.eu/",
+            "source_url": OFFICIAL_URL,
             "source_note": None,
         },
         {
@@ -33,7 +36,7 @@ EXTRACTION_PAYLOAD = {
             "value_number": None,
             "value_text": "Parallel twin",
             "unit": None,
-            "source_url": "https://www.yamaha-motor.eu/",
+            "source_url": OFFICIAL_URL,
             "source_note": None,
         },
     ],
@@ -50,18 +53,36 @@ EXTRACTION_PAYLOAD = {
 }
 
 
-def _text_response(text, stop_reason="end_turn"):
+def _web_chunk(uri, title="Source"):
+    return SimpleNamespace(web=SimpleNamespace(uri=uri, title=title))
+
+
+def _support(end_index, chunk_indices):
     return SimpleNamespace(
-        stop_reason=stop_reason, content=[SimpleNamespace(type="text", text=text)]
+        segment=SimpleNamespace(end_index=end_index),
+        grounding_chunk_indices=chunk_indices,
     )
 
 
-class FakeMessages:
+def _grounded_response(text, chunks=(), supports=()):
+    metadata = SimpleNamespace(
+        grounding_chunks=list(chunks), grounding_supports=list(supports)
+    )
+    return SimpleNamespace(
+        text=text, candidates=[SimpleNamespace(grounding_metadata=metadata)]
+    )
+
+
+def _plain_response(text):
+    return SimpleNamespace(text=text, candidates=[])
+
+
+class FakeModels:
     def __init__(self, responses):
         self._responses = list(responses)
         self.calls = []
 
-    def create(self, **kwargs):
+    def generate_content(self, **kwargs):
         self.calls.append(kwargs)
         response = self._responses.pop(0)
         if isinstance(response, Exception):
@@ -69,18 +90,39 @@ class FakeMessages:
         return response
 
 
-def _provider_with(responses):
-    provider = ClaudeSearchProvider(api_key="test-key")
-    messages = FakeMessages(responses)
-    provider._client = SimpleNamespace(messages=messages)
-    return provider, messages
+class FakeHttp:
+    """Stub httpx client: head() returns a Location header per redirect URL."""
+
+    def __init__(self, locations=None, error=None):
+        self._locations = locations or {}
+        self._error = error
+        self.requested: list[str] = []
+
+    def head(self, url):
+        self.requested.append(url)
+        if self._error is not None:
+            raise self._error
+        return SimpleNamespace(headers={"location": self._locations.get(url, "")})
+
+
+def _provider_with(responses, http=None):
+    provider = GeminiSearchProvider(api_key="test-key")
+    models = FakeModels(responses)
+    provider._client = SimpleNamespace(models=models)
+    provider._http = http or FakeHttp()
+    return provider, models
 
 
 def test_two_phase_research_returns_parsed_findings():
-    provider, messages = _provider_with(
+    notes = "The R7 makes 54 kW according to the official page."
+    provider, models = _provider_with(
         [
-            _text_response("power_peak: 54 kW per https://www.yamaha-motor.eu/ ..."),
-            _text_response(json.dumps(EXTRACTION_PAYLOAD)),
+            _grounded_response(
+                notes,
+                chunks=[_web_chunk(OFFICIAL_URL, "Yamaha YZF-R7")],
+                supports=[_support(len(notes), [0])],
+            ),
+            _plain_response(json.dumps(EXTRACTION_PAYLOAD)),
         ]
     )
 
@@ -93,41 +135,106 @@ def test_two_phase_research_returns_parsed_findings():
     assert findings.insight_findings[0].topic == "heat"
     assert findings.not_applicable_spec_keys == frozenset({"top_speed"})
 
-    search_call, extract_call = messages.calls
-    assert search_call["tools"][0]["type"] == "web_search_20260209"
-    assert extract_call["output_config"]["format"]["type"] == "json_schema"
-    # The notes from phase one are what phase two extracts from.
-    assert "54 kW" in extract_call["messages"][0]["content"]
+    search_call, extract_call = models.calls
+    assert search_call["config"].tools[0].google_search is not None
+    assert extract_call["config"].response_mime_type == "application/json"
+    assert extract_call["config"].response_schema is not None
+    # Phase two sees the notes with citation markers plus the verified source list.
+    extract_contents = extract_call["contents"]
+    assert "54 kW" in extract_contents
+    assert "[1]" in extract_contents
+    assert f"[1] Yamaha YZF-R7 — {OFFICIAL_URL}" in extract_contents
 
 
-def test_pause_turn_is_resumed():
-    paused = SimpleNamespace(
-        stop_reason="pause_turn", content=[SimpleNamespace(type="text", text="partial")]
-    )
-    provider, messages = _provider_with(
+def test_grounding_redirects_are_resolved_without_visiting_the_site():
+    notes = "Peak power is 54 kW."
+    http = FakeHttp(locations={REDIRECT_URL: OFFICIAL_URL})
+    provider, models = _provider_with(
         [
-            paused,
-            _text_response("notes after resume"),
-            _text_response(json.dumps(EXTRACTION_PAYLOAD)),
+            _grounded_response(notes, chunks=[_web_chunk(REDIRECT_URL)]),
+            _plain_response(json.dumps(EXTRACTION_PAYLOAD)),
+        ],
+        http=http,
+    )
+
+    provider.research("Yamaha YZF-R7 2023", SPEC_REQUESTS, TOPICS)
+
+    assert http.requested == [REDIRECT_URL]
+    assert OFFICIAL_URL in models.calls[1]["contents"]
+    assert REDIRECT_URL not in models.calls[1]["contents"]
+
+
+def test_direct_source_urls_skip_resolution():
+    http = FakeHttp()
+    provider, _ = _provider_with(
+        [
+            _grounded_response("notes", chunks=[_web_chunk(OFFICIAL_URL)]),
+            _plain_response(json.dumps(EXTRACTION_PAYLOAD)),
+        ],
+        http=http,
+    )
+
+    provider.research("Yamaha YZF-R7 2023", SPEC_REQUESTS, TOPICS)
+
+    assert http.requested == []
+
+
+def test_unresolvable_sources_are_an_execution_error():
+    import httpx
+
+    http = FakeHttp(error=httpx.ConnectError("no network"))
+    provider, _ = _provider_with(
+        [_grounded_response("notes", chunks=[_web_chunk(REDIRECT_URL)])], http=http
+    )
+
+    with pytest.raises(ResearchExecutionError):
+        provider.research("Yamaha YZF-R7 2023", SPEC_REQUESTS, TOPICS)
+
+
+def test_ungrounded_notes_pass_through_without_source_list():
+    provider, models = _provider_with(
+        [
+            _plain_response("NOT FOUND: everything"),
+            _plain_response(json.dumps(EXTRACTION_PAYLOAD)),
         ]
     )
 
     provider.research("Yamaha YZF-R7 2023", SPEC_REQUESTS, TOPICS)
 
-    assert len(messages.calls) == 3
-    resumed_messages = messages.calls[1]["messages"]
-    assert resumed_messages[-1]["role"] == "assistant"
+    # The rules text mentions the list by name; only the appendix header itself
+    # must be absent.
+    assert "Sources consulted:" not in models.calls[1]["contents"]
+
+
+def test_citation_markers_land_after_their_segments():
+    notes = "Power is 54 kW. Weight is 188 kg."
+    provider, models = _provider_with(
+        [
+            _grounded_response(
+                notes,
+                chunks=[_web_chunk(OFFICIAL_URL), _web_chunk("https://www.cycleworld.com/r7/")],
+                supports=[_support(15, [0]), _support(len(notes), [1])],
+            ),
+            _plain_response(json.dumps(EXTRACTION_PAYLOAD)),
+        ]
+    )
+
+    provider.research("Yamaha YZF-R7 2023", SPEC_REQUESTS, TOPICS)
+
+    assert "Power is 54 kW.[1] Weight is 188 kg.[2]" in models.calls[1]["contents"]
 
 
 def test_api_errors_map_to_execution_error():
-    provider, _ = _provider_with([anthropic.AnthropicError("provider outage")])
+    provider, _ = _provider_with(
+        [genai_errors.APIError(429, {"error": {"message": "quota exceeded"}})]
+    )
 
     with pytest.raises(ResearchExecutionError):
         provider.research("Yamaha YZF-R7 2023", SPEC_REQUESTS, TOPICS)
 
 
 def test_empty_search_notes_are_an_execution_error():
-    provider, _ = _provider_with([_text_response("   ")])
+    provider, _ = _provider_with([_plain_response("   ")])
 
     with pytest.raises(ResearchExecutionError):
         provider.research("Yamaha YZF-R7 2023", SPEC_REQUESTS, TOPICS)
@@ -135,7 +242,7 @@ def test_empty_search_notes_are_an_execution_error():
 
 def test_invalid_extraction_json_is_an_execution_error():
     provider, _ = _provider_with(
-        [_text_response("notes"), _text_response("not json at all")]
+        [_plain_response("notes"), _plain_response("not json at all")]
     )
 
     with pytest.raises(ResearchExecutionError):

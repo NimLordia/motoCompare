@@ -3,8 +3,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Protocol
+from urllib.parse import urlparse
 
-import anthropic
+import httpx
+from google import genai
+from google.genai import errors as genai_errors
+from google.genai import types as genai_types
 
 
 @dataclass(frozen=True)
@@ -57,82 +61,72 @@ class SearchProvider(Protocol):
     ) -> ResearchFindings: ...
 
 
-_MAX_PAUSE_CONTINUATIONS = 5
+# Grounding chunks cite pages through these hosts; anything else is a direct URL.
+_GROUNDING_REDIRECT_HOSTS = ("vertexaisearch.cloud.google.com",)
 
+# Gemini's response_schema takes the OpenAPI subset: nullable flags instead of
+# ["type", "null"] unions, and no additionalProperties.
 _EXTRACTION_SCHEMA: dict[str, Any] = {
-    "type": "object",
+    "type": "OBJECT",
     "properties": {
         "spec_findings": {
-            "type": "array",
+            "type": "ARRAY",
             "items": {
-                "type": "object",
+                "type": "OBJECT",
                 "properties": {
-                    "spec_key": {"type": "string"},
-                    "value_number": {"type": ["number", "null"]},
-                    "value_text": {"type": ["string", "null"]},
-                    "unit": {"type": ["string", "null"]},
-                    "source_url": {"type": "string"},
-                    "source_note": {"type": ["string", "null"]},
+                    "spec_key": {"type": "STRING"},
+                    "value_number": {"type": "NUMBER", "nullable": True},
+                    "value_text": {"type": "STRING", "nullable": True},
+                    "unit": {"type": "STRING", "nullable": True},
+                    "source_url": {"type": "STRING"},
+                    "source_note": {"type": "STRING", "nullable": True},
                 },
-                "required": [
-                    "spec_key",
-                    "value_number",
-                    "value_text",
-                    "unit",
-                    "source_url",
-                    "source_note",
-                ],
-                "additionalProperties": False,
+                "required": ["spec_key", "source_url"],
             },
         },
         "insight_findings": {
-            "type": "array",
+            "type": "ARRAY",
             "items": {
-                "type": "object",
+                "type": "OBJECT",
                 "properties": {
-                    "topic": {"type": "string"},
-                    "summary": {"type": "string"},
-                    "source_urls": {"type": "array", "items": {"type": "string"}},
+                    "topic": {"type": "STRING"},
+                    "summary": {"type": "STRING"},
+                    "source_urls": {"type": "ARRAY", "items": {"type": "STRING"}},
                 },
                 "required": ["topic", "summary", "source_urls"],
-                "additionalProperties": False,
             },
         },
-        "not_applicable_spec_keys": {"type": "array", "items": {"type": "string"}},
-        "not_applicable_topics": {"type": "array", "items": {"type": "string"}},
-        "expected_release_date": {"type": ["string", "null"]},
+        "not_applicable_spec_keys": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "not_applicable_topics": {"type": "ARRAY", "items": {"type": "STRING"}},
+        "expected_release_date": {"type": "STRING", "nullable": True},
     },
     "required": [
         "spec_findings",
         "insight_findings",
         "not_applicable_spec_keys",
         "not_applicable_topics",
-        "expected_release_date",
     ],
-    "additionalProperties": False,
 }
 
 
-class ClaudeSearchProvider:
-    """Research via the Claude API in two phases.
+class GeminiSearchProvider:
+    """Research via the Gemini API in two phases.
 
-    Phase 1 uses the server-side web search tool to gather source-cited notes —
-    one pass mines every requested fact, which is what makes populating a bike
-    cost a few searches instead of one per fact. Phase 2 extracts typed findings
-    from those notes with a structured-output call, so parsing never depends on
-    free-form text.
+    Phase 1 grounds a research pass in Google Search — one pass mines every
+    requested fact, which is what makes populating a bike cost a few searches
+    instead of one per fact. Grounded citations arrive as metadata with expiring
+    Google redirect URLs, so the provider inserts [n] citation markers into the
+    notes and resolves each redirect to the real page URL in a "Sources
+    consulted" list. Phase 2 extracts typed findings from those notes with a
+    JSON-schema constrained call; source URLs are copied from the verified list,
+    never from model memory.
     """
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        model: str = "claude-opus-4-8",
-        max_web_searches: int = 8,
-    ):
+    def __init__(self, api_key: str | None = None, model: str = "gemini-2.5-flash"):
         self._api_key = api_key
         self._model = model
-        self._max_web_searches = max_web_searches
-        self._client: anthropic.Anthropic | None = None
+        self._client: genai.Client | None = None
+        self._http: httpx.Client | None = None
 
     def research(
         self,
@@ -144,21 +138,26 @@ class ClaudeSearchProvider:
         payload = self._extract(bike_description, notes, spec_requests, insight_topics)
         return findings_from_payload(payload)
 
-    def _get_client(self) -> anthropic.Anthropic:
+    def _get_client(self) -> genai.Client:
         # Created lazily so the app can boot without credentials; without an explicit
-        # key the SDK resolves ANTHROPIC_API_KEY (and friends) itself.
+        # key the SDK resolves GEMINI_API_KEY / GOOGLE_API_KEY itself.
         if self._client is None:
             kwargs = {"api_key": self._api_key} if self._api_key else {}
-            self._client = anthropic.Anthropic(**kwargs)
+            self._client = genai.Client(**kwargs)
         return self._client
 
-    def _create_message(self, **kwargs: Any) -> Any:
+    def _get_http(self) -> httpx.Client:
+        if self._http is None:
+            self._http = httpx.Client(timeout=10.0)
+        return self._http
+
+    def _generate(self, contents: str, config: genai_types.GenerateContentConfig) -> Any:
         try:
-            return self._get_client().messages.create(
-                model=self._model, thinking={"type": "adaptive"}, **kwargs
+            return self._get_client().models.generate_content(
+                model=self._model, contents=contents, config=config
             )
-        except anthropic.AnthropicError as error:
-            raise ResearchExecutionError(f"claude api call failed: {error}") from error
+        except (genai_errors.APIError, httpx.HTTPError) as error:
+            raise ResearchExecutionError(f"gemini api call failed: {error}") from error
 
     def _search(
         self,
@@ -166,30 +165,57 @@ class ClaudeSearchProvider:
         spec_requests: Sequence[SpecRequest],
         insight_topics: Sequence[str],
     ) -> str:
-        web_search_tool = {
-            "type": "web_search_20260209",
-            "name": "web_search",
-            "max_uses": self._max_web_searches,
-        }
-        prompt = search_prompt(bike_description, spec_requests, insight_topics)
-        messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
-        for _ in range(_MAX_PAUSE_CONTINUATIONS):
-            response = self._create_message(
-                max_tokens=16000, tools=[web_search_tool], messages=messages
-            )
-            if response.stop_reason != "pause_turn":
-                break
-            # The server-side search loop paused mid-turn; re-send with the partial
-            # assistant turn appended and it resumes where it left off.
-            messages = [*messages, {"role": "assistant", "content": response.content}]
-        else:
-            raise ResearchExecutionError("web search kept pausing without completing")
-        if response.stop_reason == "refusal":
-            raise ResearchExecutionError("search request was refused")
-        notes = _joined_text(response)
+        response = self._generate(
+            contents=search_prompt(bike_description, spec_requests, insight_topics),
+            config=genai_types.GenerateContentConfig(
+                tools=[genai_types.Tool(google_search=genai_types.GoogleSearch())]
+            ),
+        )
+        notes = response.text or ""
         if not notes.strip():
             raise ResearchExecutionError("search produced no notes")
+        chunks, supports = _grounding_metadata(response)
+        notes = _insert_citation_markers(notes, supports)
+        sources = self._resolved_sources(chunks)
+        if chunks and not sources:
+            # Sources existed but none resolved — an infrastructure problem, not
+            # knowledge about the bike; retry instead of memoizing not_found.
+            raise ResearchExecutionError("no grounding source URL could be resolved")
+        if sources:
+            source_lines = [f"[{index}] {title} — {url}" for index, title, url in sources]
+            notes = "\n".join([notes, "", "Sources consulted:", *source_lines])
         return notes
+
+    def _resolved_sources(self, chunks: list[Any]) -> list[tuple[int, str, str]]:
+        sources = []
+        for index, chunk in enumerate(chunks, start=1):
+            web = getattr(chunk, "web", None)
+            if web is None or not web.uri:
+                continue
+            url = self._resolve_redirect(web.uri)
+            if url is None:
+                continue
+            sources.append((index, web.title or url, url))
+        return sources
+
+    def _resolve_redirect(self, url: str) -> str | None:
+        """Recover the real page URL behind a grounding redirect.
+
+        The redirect links expire and hide the cited domain, which would break
+        both provenance and tier classification. One non-following HEAD request
+        to Google reads the Location header without ever hitting the cited site.
+        """
+        host = urlparse(url).netloc.lower()
+        if not any(
+            host == redirect_host or host.endswith("." + redirect_host)
+            for redirect_host in _GROUNDING_REDIRECT_HOSTS
+        ):
+            return url
+        try:
+            response = self._get_http().head(url)
+        except httpx.HTTPError:
+            return None
+        return response.headers.get("location") or None
 
     def _extract(
         self,
@@ -198,29 +224,45 @@ class ClaudeSearchProvider:
         spec_requests: Sequence[SpecRequest],
         insight_topics: Sequence[str],
     ) -> dict[str, Any]:
-        response = self._create_message(
-            max_tokens=16000,
-            output_config={"format": {"type": "json_schema", "schema": _EXTRACTION_SCHEMA}},
-            messages=[
-                {
-                    "role": "user",
-                    "content": extraction_prompt(
-                        bike_description, notes, spec_requests, insight_topics
-                    ),
-                }
-            ],
+        response = self._generate(
+            contents=extraction_prompt(bike_description, notes, spec_requests, insight_topics),
+            config=genai_types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=_EXTRACTION_SCHEMA,
+            ),
         )
-        if response.stop_reason == "max_tokens":
-            raise ResearchExecutionError("extraction output was truncated")
-        if response.stop_reason == "refusal":
-            raise ResearchExecutionError("extraction request was refused")
         try:
-            payload = json.loads(_joined_text(response))
+            payload = json.loads(response.text or "")
         except json.JSONDecodeError as error:
             raise ResearchExecutionError(f"extraction returned invalid JSON: {error}") from error
         if not isinstance(payload, dict):
             raise ResearchExecutionError("extraction returned a non-object payload")
         return payload
+
+
+def _grounding_metadata(response: Any) -> tuple[list[Any], list[Any]]:
+    candidates = response.candidates or []
+    metadata = candidates[0].grounding_metadata if candidates else None
+    if metadata is None:
+        return [], []
+    return list(metadata.grounding_chunks or []), list(metadata.grounding_supports or [])
+
+
+def _insert_citation_markers(text: str, supports: list[Any]) -> str:
+    """Attach [n] markers (1-based grounding-chunk indices) to the cited segments,
+    working back-to-front so earlier offsets stay valid."""
+    anchored = [
+        support
+        for support in supports
+        if support.segment is not None
+        and support.segment.end_index is not None
+        and support.grounding_chunk_indices
+    ]
+    for support in sorted(anchored, key=lambda s: s.segment.end_index, reverse=True):
+        marker = "".join(f"[{index + 1}]" for index in support.grounding_chunk_indices)
+        end = support.segment.end_index
+        text = text[:end] + marker + text[end:]
+    return text
 
 
 def search_prompt(
@@ -230,9 +272,7 @@ def search_prompt(
 ) -> str:
     lines = [f"Research the motorcycle: {bike_description}.", ""]
     if spec_requests:
-        lines.append(
-            "Quantitative specifications to find (value + unit + exact source URL for each):"
-        )
+        lines.append("Quantitative specifications to find (value + unit for each):")
         for request in spec_requests:
             unit_note = (
                 f", typically reported in {request.canonical_unit}"
@@ -246,19 +286,19 @@ def search_prompt(
             "Qualitative topics to research from real owner and tester experience"
             " (owner forums, subreddits, owner reviews, long-term tests)."
             " For each, write a 2-4 sentence summary grounded ONLY in what the sources"
-            " actually say, and list every source URL used:"
+            " actually say:"
         )
         lines.extend(f"- {topic}" for topic in insight_topics)
         lines.append("")
     lines.extend(
         [
             "Rules:",
-            "- Report only what a source explicitly states, with the exact page URL."
-            " Never estimate or fill gaps from memory.",
+            "- Ground every statement in web search results. Report only what a source"
+            " explicitly states; never estimate or fill gaps from memory.",
             "- Prefer the manufacturer's official specification page; mine it for every"
             " listed spec it contains before searching further. Also report independently"
             " measured values (dyno or instrumented road tests) when you find them, as"
-            " separate entries with their own URLs.",
+            " separate entries.",
             '- If you cannot find a trustworthy source for an item, write "NOT FOUND: <item>".',
             '- If an item does not exist for this motorcycle, write "NOT APPLICABLE: <item>".',
             "- If the motorcycle has been announced but not yet released, say so and give"
@@ -290,13 +330,16 @@ def extraction_prompt(
             *topic_lines,
             "",
             "Rules:",
+            "- The notes cite sources with [n] markers that refer to the numbered"
+            ' "Sources consulted" list at the end. source_url must be copied exactly'
+            " from that list — the entry whose marker is attached to the fact.",
             "- Include a spec finding only when the notes state a concrete value WITH a"
-            " source URL. Emit one finding per (value, source) pair, so several sources"
-            " for the same key become several findings.",
+            " citation marker. Emit one finding per (value, source) pair, so several"
+            " sources for the same key become several findings.",
             "- Use value_number for numeric keys with unit exactly as stated in the notes;"
             " use value_text for text keys with unit null.",
-            "- Include an insight finding only when the notes contain a grounded summary"
-            " with at least one source URL.",
+            "- Include an insight finding only when the notes contain a grounded summary,"
+            " and list every cited source URL for it.",
             "- Put keys or topics the notes mark NOT APPLICABLE in the corresponding"
             " lists. NOT FOUND items are simply omitted.",
             "- Set expected_release_date (YYYY-MM-DD) only if the notes say the bike is"
@@ -374,10 +417,6 @@ def _insight_finding_from_item(item: Any) -> InsightFinding | None:
         if isinstance(url, str) and url.strip()
     )
     return InsightFinding(topic=topic.strip(), summary=summary.strip(), source_urls=urls)
-
-
-def _joined_text(response: Any) -> str:
-    return "".join(block.text for block in response.content if block.type == "text")
 
 
 def _list_of(payload: dict[str, Any], key: str) -> list[Any]:

@@ -44,3 +44,5 @@ docker-compose.yml   PostgreSQL for local development
 2026-07-21 — Backend scaffold and catalog module implemented: schema + migration, service layer, browsing API, seeds, 51 tests. Next: research module (the catalog's `register_pending_research_provider` hook and upserts are its integration points).
 
 2026-07-22 — Research module implemented: two-phase Claude web-search provider, batched pipeline with the full failure taxonomy, in-process executor (chat inline-await + web polling), REST endpoints, 65 tests (116 total). Next: profile module, or chat now that `wait_for_research` exists.
+
+2026-07-22 — Project LLM provider switched to Gemini (the project runs on a Gemini API key). Research now uses Google Search grounding + JSON-schema extraction with redirect-resolved source URLs; chat will use `langchain-google-genai`. See DECISIONS 2026-07-22.

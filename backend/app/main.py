@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.research import service as research_service
 from app.research.executor import BackgroundResearchExecutor
-from app.research.provider import ClaudeSearchProvider
+from app.research.provider import GeminiSearchProvider
 from app.research.router import router as research_router
 from app.research.service import ResearchNotFoundError, ResearchValidationError
 
@@ -23,10 +23,9 @@ def create_app() -> FastAPI:
     settings = get_settings()
     executor = BackgroundResearchExecutor(
         SessionLocal,
-        ClaudeSearchProvider(
-            api_key=settings.anthropic_api_key,
+        GeminiSearchProvider(
+            api_key=settings.gemini_api_key,
             model=settings.research_model,
-            max_web_searches=settings.research_max_web_searches,
         ),
         max_attempts=settings.research_max_attempts,
         conflict_tolerance=settings.research_conflict_tolerance,

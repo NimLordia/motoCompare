@@ -11,7 +11,7 @@ A personalized motorcycle platform with a self-filling, source-aware specificati
 
 ## Stack
 
-React (Vite + TypeScript) · FastAPI · LangGraph · PostgreSQL · Claude API
+React (Vite + TypeScript) · FastAPI · LangGraph · PostgreSQL · Gemini API
 
 ## Running locally
 
@@ -27,7 +27,7 @@ python -m app.catalog.seed           # registry + demo bikes (safe to rerun)
 uvicorn app.main:app --reload        # API on http://localhost:8000, docs at /docs
 ```
 
-For live research (auto-populating spec sheets via Claude web search), set `MOTO_ANTHROPIC_API_KEY` (or a plain `ANTHROPIC_API_KEY`) before starting the API. Without a key everything else works; research tasks retry and land as `failed / retries_exhausted`.
+For live research (auto-populating spec sheets via Google Search grounding), set `MOTO_GEMINI_API_KEY` (or a plain `GEMINI_API_KEY` / `GOOGLE_API_KEY`) before starting the API. Without a key everything else works; research tasks retry and land as `failed / retries_exhausted`.
 
 Tests run without any infrastructure: `pytest` (in-memory SQLite).
 
