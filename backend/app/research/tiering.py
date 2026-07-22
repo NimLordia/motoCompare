@@ -39,6 +39,7 @@ TESTED_DOMAINS: frozenset[str] = frozenset({
     "asphaltandrubber.com",
     "bennetts.co.uk",
     "cycleworld.com",
+    "mcnews.com.au",
     "motociclismo.es",
     "motorcycle.com",
     "motorcyclenews.com",
