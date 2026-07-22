@@ -75,6 +75,10 @@ def list_variants(db: Session, model_id: int) -> list[VariantOut]:
     return [_variant_out(variant) for variant in variants]
 
 
+def get_variant(db: Session, bike_id: int) -> VariantOut:
+    return _variant_out(_get_bike(db, bike_id))
+
+
 def resolve_bike(
     db: Session, query: str, market: str | None = None, limit: int = 5
 ) -> list[BikeCandidate]:

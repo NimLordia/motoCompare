@@ -59,3 +59,14 @@ def test_display_unit_imperial_keeps_industry_metric_units():
     assert units.display_unit("cc", "imperial") == "cc"
     assert units.display_unit("s", "imperial") == "s"
     assert units.display_unit("", "imperial") == ""
+
+
+def test_display_unit_mixed_shows_power_in_hp():
+    assert units.display_unit("kW", "mixed") == "hp"
+
+
+@pytest.mark.parametrize(
+    "canonical", ["Nm", "kg", "km/h", "mm", "L", "L/100km", "cc", "s", ""]
+)
+def test_display_unit_mixed_keeps_everything_else_metric(canonical: str):
+    assert units.display_unit(canonical, "mixed") == canonical

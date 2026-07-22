@@ -52,6 +52,22 @@ def test_get_specs_converts_to_imperial(db, make_bike):
     assert fact.value == pytest.approx(72.42, abs=0.01)
 
 
+def test_get_specs_mixed_converts_power_only(db, make_bike):
+    bike = make_bike()
+    service.upsert_spec_value(db, bike.id, "power_peak", 54.0, "kW", "official")
+    service.upsert_spec_value(db, bike.id, "wet_weight", 188.0, "kg", "official")
+
+    facts = service.get_specs(
+        db, bike.id, keys=["power_peak", "wet_weight"], unit_system="mixed"
+    )
+
+    by_key = {fact.spec_key: fact for fact in facts}
+    assert by_key["power_peak"].unit == "hp"
+    assert by_key["power_peak"].value == pytest.approx(72.42, abs=0.01)
+    assert by_key["wet_weight"].unit == "kg"
+    assert by_key["wet_weight"].value == 188.0
+
+
 def test_text_spec_roundtrip_and_unit_rejection(db, make_bike):
     bike = make_bike()
     service.upsert_spec_value(db, bike.id, "engine_type", "Parallel twin", None, "official")

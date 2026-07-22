@@ -1,6 +1,6 @@
-UnitSystem = str  # "metric" | "imperial"
+UnitSystem = str  # "metric" | "imperial" | "mixed"
 
-UNIT_SYSTEMS: tuple[str, ...] = ("metric", "imperial")
+UNIT_SYSTEMS: tuple[str, ...] = ("metric", "imperial", "mixed")
 
 _LINEAR_FACTORS: dict[tuple[str, str], float] = {
     ("kW", "hp"): 1.34102209,
@@ -26,6 +26,12 @@ _IMPERIAL_DISPLAY_UNITS: dict[str, str] = {
     "mm": "in",
     "L": "gal",
     "L/100km": "mpg",
+}
+
+# "mixed" is the motorcycle-press convention in metric markets: everything
+# metric except power, which riders and reviews quote in hp.
+_MIXED_DISPLAY_UNITS: dict[str, str] = {
+    "kW": "hp",
 }
 
 
@@ -54,4 +60,6 @@ def convert(value: float, from_unit: str, to_unit: str) -> float:
 def display_unit(canonical_unit: str, unit_system: UnitSystem) -> str:
     if unit_system == "imperial":
         return _IMPERIAL_DISPLAY_UNITS.get(canonical_unit, canonical_unit)
+    if unit_system == "mixed":
+        return _MIXED_DISPLAY_UNITS.get(canonical_unit, canonical_unit)
     return canonical_unit

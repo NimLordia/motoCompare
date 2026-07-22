@@ -19,7 +19,7 @@ from app.db import get_db
 
 router = APIRouter()
 
-UnitSystemParam = Annotated[Literal["metric", "imperial"], Query()]
+UnitSystemParam = Annotated[Literal["metric", "imperial", "mixed"], Query()]
 
 
 def _split_csv(raw: str | None) -> list[str] | None:

@@ -19,11 +19,12 @@ Canonical unit examples: power kW, torque Nm, mass kg, speed km/h, length mm, vo
 
 Browsing (backs the web catalog):
 - `list_manufacturers()` / `list_models(manufacturer_id)` / `list_variants(model_id)`
+- `get_variant(bike_id) -> VariantOut` — one variant with its display name; the FK-validation and rendering hook for other modules (profile's garage/dream bikes).
 - `resolve_bike(query: str, market: str | None) -> list[BikeCandidate]` — fuzzy text → ranked variants ("R7" → Yamaha YZF-R7 2023 EU), with confidence; the caller decides whether to disambiguate.
 - `data_coverage(bike_id) -> Coverage` — which core specs and insight topics are present vs. missing (and whether research is pending). Web uses this to decide when to trigger population and to render "researching…" states.
 
 Facts:
-- `get_specs(bike_id, keys | None, unit_system) -> list[Fact]` — values converted to the requested units, **all source tiers present returned**, resolved display order official > tested > community > estimated.
+- `get_specs(bike_id, keys | None, unit_system) -> list[Fact]` — values converted to the requested units, **all source tiers present returned**, resolved display order official > tested > community > estimated. Unit systems: `metric | imperial | mixed` (mixed = metric with power in hp — the motorcycle-press convention).
 - `compare(bike_ids, keys | None, unit_system) -> ComparisonMatrix` — aligned facts across bikes with per-cell provenance and explicit `missing` markers.
 - `get_insights(bike_id, topics | None) -> list[Insight]`
 - `upsert_spec_value(...)` / `upsert_insight(...)` — validate against the registry / topic list, convert to canonical units, write. **The research module is the only external writer of both.**
