@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # Chat's inline research budget; past it, research continues in the background.
     research_inline_budget_seconds: float = 20.0
 
+    # Assistant chat. Without an API key (MOTO_GEMINI_API_KEY or the SDK's own
+    # GEMINI_API_KEY/GOOGLE_API_KEY) the chat endpoint answers 503; the rest of
+    # the API works without one.
+    chat_model: str = "gemini-3.6-flash"
+
 
 @lru_cache
 def get_settings() -> Settings:

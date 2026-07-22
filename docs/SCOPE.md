@@ -19,7 +19,7 @@ A personalized motorcycle platform backed by a growing, source-aware database. U
 | catalog | [modules/catalog.md](modules/catalog.md) | Bike identity, spec registry, facts + insights storage, browsing API, unit conversion | implemented (v1) |
 | research | [modules/research.md](modules/research.md) | Missing-data pipeline for specs and insights, failure taxonomy, bike auto-population | implemented (v1) |
 | profile | [modules/profile.md](modules/profile.md) | Personal area: preferences, garage, dream bikes | implemented (v1) |
-| chat | [modules/chat.md](modules/chat.md) | Assistant feature: LangGraph agent, tools, streaming | spec drafted |
+| chat | [modules/chat.md](modules/chat.md) | Assistant feature: LangGraph agent, tools, streaming | implemented (v1) |
 | web | [modules/web.md](modules/web.md) | SPA: catalog browser, model pages, compare, personal area, chat | spec drafted |
 
 ## V1 scope
@@ -48,3 +48,5 @@ docker-compose.yml   PostgreSQL for local development
 2026-07-22 — Project LLM provider switched to Gemini (the project runs on a Gemini API key). Research now uses Google Search grounding + JSON-schema extraction with redirect-resolved source URLs; chat will use `langchain-google-genai`. See DECISIONS 2026-07-22.
 
 2026-07-22 — Profile module implemented: single lazy-created local user, preferences (with the new `mixed` unit system, applied by catalog), garage with a database-enforced one-current invariant, dream bikes; REST + service layer, 36 tests (167 total). Next: chat (`get_profile` and `wait_for_research` are both ready for it).
+
+2026-07-22 — Chat module implemented: SSE streaming endpoint, six-tool LangGraph agent on Gemini with the grounding hard rules, structured blocks reusing catalog payloads, hybrid inline/background research, per-conversation memory; 30 tests. Verified live against the Gemini API (tool loop, blocks, dual official/tested presentation). Next: the web SPA — every backend module it needs is now in place.

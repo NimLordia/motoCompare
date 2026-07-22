@@ -1,6 +1,12 @@
-from collections.abc import Iterator, Sequence
+import json
+from collections.abc import Callable, Iterator, Sequence
 
 import pytest
+from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from pydantic import Field
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -8,6 +14,7 @@ from sqlalchemy.pool import StaticPool
 import app.profile.models  # noqa: F401  (registers profile tables for create_all)
 from app.catalog.models import Manufacturer, Model, Motorcycle
 from app.catalog.seed import seed_registry
+from app.chat import service as chat_service
 from app.db import Base
 from app.research.provider import ResearchFindings, SpecRequest
 
@@ -90,3 +97,83 @@ class FakeSearchProvider:
 @pytest.fixture()
 def fake_provider() -> FakeSearchProvider:
     return FakeSearchProvider()
+
+
+class FakeChatModel(BaseChatModel):
+    """Scripted chat model: replays `responses`, one per LLM call, and records
+    the prompts it saw. With `loop_last`, the final response repeats forever."""
+
+    responses: list[AIMessage]
+    loop_last: bool = False
+    call_index: int = 0
+    seen_prompts: list[list[BaseMessage]] = Field(default_factory=list)
+    bound_tool_names: list[str] = Field(default_factory=list)
+
+    @property
+    def _llm_type(self) -> str:
+        return "fake-chat-model"
+
+    def bind_tools(self, tools: Sequence, **kwargs) -> "FakeChatModel":
+        self.bound_tool_names = [tool.name for tool in tools]
+        return self
+
+    def _next_response(self, messages: list[BaseMessage]) -> AIMessage:
+        self.seen_prompts.append(list(messages))
+        if self.loop_last and self.call_index >= len(self.responses):
+            return self.responses[-1]
+        response = self.responses[self.call_index]  # IndexError = script exhausted
+        self.call_index += 1
+        return response
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs,
+    ) -> ChatResult:
+        return ChatResult(generations=[ChatGeneration(message=self._next_response(messages))])
+
+    def _stream(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs,
+    ) -> Iterator[ChatGenerationChunk]:
+        response = self._next_response(messages)
+        if response.tool_calls:
+            yield ChatGenerationChunk(
+                message=AIMessageChunk(
+                    content="",
+                    tool_call_chunks=[
+                        {
+                            "name": tool_call["name"],
+                            "args": json.dumps(tool_call["args"]),
+                            "id": tool_call["id"],
+                            "index": position,
+                            "type": "tool_call_chunk",
+                        }
+                        for position, tool_call in enumerate(response.tool_calls)
+                    ],
+                )
+            )
+            return
+        # Word-level chunks so tests exercise token streaming.
+        words = str(response.content).split(" ")
+        for position, word in enumerate(words):
+            text = word if position == len(words) - 1 else word + " "
+            yield ChatGenerationChunk(message=AIMessageChunk(content=text))
+
+
+@pytest.fixture()
+def scripted_chat() -> Iterator[Callable[..., FakeChatModel]]:
+    """Configure the chat service with a scripted model; unconfigures on teardown."""
+
+    def _configure(*responses: AIMessage, loop_last: bool = False) -> FakeChatModel:
+        model = FakeChatModel(responses=list(responses), loop_last=loop_last)
+        chat_service.configure_chat_model(model)
+        return model
+
+    yield _configure
+    chat_service.configure_chat_model(None)

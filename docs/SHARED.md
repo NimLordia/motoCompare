@@ -31,8 +31,13 @@ Format: `symbol(signature)` — path — one-line purpose.
 - `classify_source_tier(url)` / `is_valid_source_url(url)` — backend/app/research/tiering.py — domain→tier map and URL sanity check
 - `run_bike_research(db, provider, bike_id)` — backend/app/research/runner.py — batched pipeline execution for one bike
 - `BackgroundResearchExecutor` — backend/app/research/executor.py — thread-pool dispatcher with per-bike dedup and inline await
+- chat service (`configure_chat_model/chat_is_configured/stream_chat` + `ChatEvent`) — backend/app/chat/service.py — the chat public interface; stream_chat yields SSE-ready events
+- `build_toolbox(db, user_id, unit_system, inline_budget_seconds)` — backend/app/chat/tools.py — the agent's six tools bound to one request; `status_line(tool_name, args)` maps a tool call to its progress line
+- `build_chat_agent(model, tools, checkpointer)` — backend/app/chat/agent.py — compiled LangGraph tool loop (sequential tool execution; `RECURSION_LIMIT` step budget)
+- `SYSTEM_PROMPT` / `SYSTEM_PROMPT_VERSION` — backend/app/chat/prompts.py — the assistant's versioned system prompt
 - `db` / `make_bike` fixtures — backend/tests/conftest.py — in-memory SQLite session with seeded registry + bike factory; reuse in any backend test
 - `fake_provider` fixture (`FakeSearchProvider`) — backend/tests/conftest.py — scripted SearchProvider for research tests
+- `scripted_chat` fixture (`FakeChatModel`) — backend/tests/conftest.py — scripted tool-calling chat model for agent/stream tests; records prompts and bound tools
 
 ## Frontend — components
 
@@ -47,3 +52,4 @@ Format: `symbol(signature)` — path — one-line purpose.
 - `Fact`, `Coverage`, `BikeCandidate`, `ComparisonMatrix`/`Row`/`Cell`, `BikeDetail`, `InsightOut`, `ManufacturerOut`/`ModelOut`/`VariantOut` — backend/app/catalog/schemas.py — Pydantic payloads returned by the catalog API; the frontend mirrors these
 - `ResearchTaskOut` / `ResearchRequestIn` — backend/app/research/schemas.py — research API payloads for task polling and requests
 - `ProfileOut` / `ProfileUpdateIn` / `GarageBikeOut` / `GarageBikeIn` / `DreamBikeOut` / `DreamBikeIn` — backend/app/profile/schemas.py — profile API payloads; garage/dream entries embed the catalog `VariantOut`
+- `ChatMessageIn` + chat blocks (`SpecCardBlock`/`ComparisonTableBlock`/`InsightCardBlock`/`ResearchPendingBlock`/`DisambiguationBlock`, union `ChatBlock`) — backend/app/chat/schemas.py — chat request + SSE `block` event payloads; blocks embed catalog payloads unchanged, so the frontend reuses catalog components
