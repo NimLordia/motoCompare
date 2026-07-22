@@ -84,3 +84,9 @@ Why: the project runs on a Gemini API key. The two-phase research design carries
 
 **2026-07-22 — Third unit system "mixed": metric everywhere except power, shown in hp.**
 Why: the profile spec promises `metric | imperial | mixed`, and profile's boundary says catalog applies the preference — so the conversion layer must understand every preference value. "Mixed" follows the motorcycle-press convention in metric markets (specs quoted as hp / Nm / kg / km/h). Implemented as a display-unit map in `catalog/units.py`; storage stays canonical, and `mixed` is accepted everywhere `unit_system` already was.
+
+**2026-07-22 — V1 single-user mechanics: `DEFAULT_USER_ID = 1`, user row created lazily on first write, GET returns defaults without writing.**
+Why: no seed dependency and no auth scaffolding, while reads stay side-effect-free (a fresh database answers `GET /api/profile` with defaults instead of 404 or a write-on-read). Service functions take `user_id` explicitly and only routers pin the default, so auth later means swapping where the id comes from.
+
+**2026-07-22 — Garage semantics: POST upserts on (user, variant); one current bike enforced by a partial unique index; deleting the current bike promotes the newest remaining.**
+Why: a repeat add is almost always a double-click, so the unique constraint plus nickname-refresh beats duplicate rows (the two-identical-bikes edge case loses to dedup in v1). "Exactly one current per non-empty garage" is a database invariant (`user_id WHERE is_current`, valid on both PostgreSQL and SQLite) rather than app-level discipline, and auto-promotion keeps the invariant without forcing the UI to pick a new current bike first.

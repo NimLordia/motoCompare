@@ -12,6 +12,8 @@ from app.catalog.service import (
 )
 from app.config import get_settings
 from app.db import SessionLocal
+from app.profile.router import router as profile_router
+from app.profile.service import ProfileNotFoundError, ProfileValidationError
 from app.research import service as research_service
 from app.research.executor import BackgroundResearchExecutor
 from app.research.provider import GeminiSearchProvider
@@ -43,6 +45,8 @@ def create_app() -> FastAPI:
     app = FastAPI(title="motoCompare API", version="0.1.0", lifespan=lifespan)
     app.include_router(catalog_router, prefix="/api/catalog", tags=["catalog"])
     app.include_router(research_router, prefix="/api/research", tags=["research"])
+    # Profile paths live directly under /api (/api/profile, /api/garage, /api/dream-bikes).
+    app.include_router(profile_router, prefix="/api", tags=["profile"])
 
     @app.exception_handler(CatalogNotFoundError)
     def handle_not_found(request: Request, error: CatalogNotFoundError) -> JSONResponse:
@@ -61,6 +65,18 @@ def create_app() -> FastAPI:
     @app.exception_handler(ResearchValidationError)
     def handle_research_validation(
         request: Request, error: ResearchValidationError
+    ) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(error)})
+
+    @app.exception_handler(ProfileNotFoundError)
+    def handle_profile_not_found(
+        request: Request, error: ProfileNotFoundError
+    ) -> JSONResponse:
+        return JSONResponse(status_code=404, content={"detail": str(error)})
+
+    @app.exception_handler(ProfileValidationError)
+    def handle_profile_validation(
+        request: Request, error: ProfileValidationError
     ) -> JSONResponse:
         return JSONResponse(status_code=422, content={"detail": str(error)})
 

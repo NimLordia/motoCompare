@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import app.profile.models  # noqa: F401  (registers profile tables for create_all)
 from app.catalog.models import Manufacturer, Model, Motorcycle
 from app.catalog.seed import seed_registry
 from app.db import Base

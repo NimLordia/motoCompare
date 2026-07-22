@@ -18,9 +18,13 @@ Format: `symbol(signature)` — path — one-line purpose.
 - `CatalogNotFoundError` / `CatalogValidationError` — backend/app/catalog/service.py — service exceptions, mapped to 404/422 by app-level handlers in main.py
 - `register_pending_research_provider(fn)` — backend/app/catalog/service.py — hook the research module uses to surface in-flight research in `data_coverage`
 - `SourceType` / `ValueType` / `SOURCE_TIER_PRIORITY` — backend/app/catalog/models.py — source tier enum + resolution order
+- `PortableJSON` — backend/app/catalog/models.py — JSON column type (JSONB variant on PostgreSQL) for dual-dialect models
 - `SPEC_DEFINITIONS` / `CORE_SPEC_KEYS` / `INSIGHT_TOPICS` — backend/app/catalog/registry.py — code bootstrap of the spec registry and topic list
 - research service (`request_research/populate_bike/get_task/get_tasks_for_bike/wait_for_research/pending_research_for_bike/configure_dispatcher`) — backend/app/research/service.py — the research public interface
 - `ResearchNotFoundError` / `ResearchValidationError` — backend/app/research/service.py — service exceptions, mapped to 404/422 in main.py
+- profile service (`get_profile/update_profile/list_garage/add_garage_bike/set_current_garage_bike/remove_garage_bike/list_dream_bikes/add_dream_bike/remove_dream_bike`) — backend/app/profile/service.py — the profile public interface
+- `ProfileNotFoundError` / `ProfileValidationError` — backend/app/profile/service.py — service exceptions, mapped to 404/422 in main.py
+- `DEFAULT_USER_ID` / `UnitSystemPreference` — backend/app/profile/models.py — v1 single-user id + unit preference enum (metric/imperial/mixed)
 - `ResearchKind` / `ResearchTaskState` / `FailureReason` / `FAILURE_COOLDOWNS` — backend/app/research/models.py — task enums and retry policy
 - `SearchProvider` protocol + `SpecRequest`/`SpecFinding`/`InsightFinding`/`ResearchFindings` + `ResearchExecutionError` — backend/app/research/provider.py — the pluggable research-provider contract
 - `GeminiSearchProvider` — backend/app/research/provider.py — two-phase Gemini implementation (Google Search grounding → JSON-schema extraction, with redirect-resolved source URLs)
@@ -42,3 +46,4 @@ Format: `symbol(signature)` — path — one-line purpose.
 
 - `Fact`, `Coverage`, `BikeCandidate`, `ComparisonMatrix`/`Row`/`Cell`, `BikeDetail`, `InsightOut`, `ManufacturerOut`/`ModelOut`/`VariantOut` — backend/app/catalog/schemas.py — Pydantic payloads returned by the catalog API; the frontend mirrors these
 - `ResearchTaskOut` / `ResearchRequestIn` — backend/app/research/schemas.py — research API payloads for task polling and requests
+- `ProfileOut` / `ProfileUpdateIn` / `GarageBikeOut` / `GarageBikeIn` / `DreamBikeOut` / `DreamBikeIn` — backend/app/profile/schemas.py — profile API payloads; garage/dream entries embed the catalog `VariantOut`

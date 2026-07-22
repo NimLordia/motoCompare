@@ -18,7 +18,7 @@ A personalized motorcycle platform backed by a growing, source-aware database. U
 |---|---|---|---|
 | catalog | [modules/catalog.md](modules/catalog.md) | Bike identity, spec registry, facts + insights storage, browsing API, unit conversion | implemented (v1) |
 | research | [modules/research.md](modules/research.md) | Missing-data pipeline for specs and insights, failure taxonomy, bike auto-population | implemented (v1) |
-| profile | [modules/profile.md](modules/profile.md) | Personal area: preferences, garage, dream bikes | spec drafted |
+| profile | [modules/profile.md](modules/profile.md) | Personal area: preferences, garage, dream bikes | implemented (v1) |
 | chat | [modules/chat.md](modules/chat.md) | Assistant feature: LangGraph agent, tools, streaming | spec drafted |
 | web | [modules/web.md](modules/web.md) | SPA: catalog browser, model pages, compare, personal area, chat | spec drafted |
 
@@ -46,3 +46,5 @@ docker-compose.yml   PostgreSQL for local development
 2026-07-22 — Research module implemented: two-phase Claude web-search provider, batched pipeline with the full failure taxonomy, in-process executor (chat inline-await + web polling), REST endpoints, 65 tests (116 total). Next: profile module, or chat now that `wait_for_research` exists.
 
 2026-07-22 — Project LLM provider switched to Gemini (the project runs on a Gemini API key). Research now uses Google Search grounding + JSON-schema extraction with redirect-resolved source URLs; chat will use `langchain-google-genai`. See DECISIONS 2026-07-22.
+
+2026-07-22 — Profile module implemented: single lazy-created local user, preferences (with the new `mixed` unit system, applied by catalog), garage with a database-enforced one-current invariant, dream bikes; REST + service layer, 36 tests (167 total). Next: chat (`get_profile` and `wait_for_research` are both ready for it).
