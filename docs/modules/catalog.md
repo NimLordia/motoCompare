@@ -6,7 +6,7 @@ Motorcycle identity, the spec registry, source-aware storage of facts and insigh
 
 ## Data owned
 
-- `manufacturers` — id, name
+- `manufacturers` — id, name. Seeded from the `MANUFACTURER_OFFICIAL_DOMAINS` roster in `registry.py`, which also feeds research's official-tier domain matching.
 - `models` — id, manufacturer_id, name (e.g. "YZF-R7")
 - `motorcycles` — id, model_id, year, trim, market. One row = one identifiable variant.
 - `spec_definitions` — the registry: key (e.g. `power_peak`), canonical_unit (e.g. `kW`), value_type, category (engine/chassis/performance/…), **is_core** (part of the auto-population set every bike page needs). Single source of truth for what specs exist and how they are stored.
@@ -44,8 +44,8 @@ Facts:
 
 ## Code map
 
-`backend/app/catalog/` — `models.py` (tables), `registry.py` (spec/topic bootstrap), `units.py` (conversion), `service.py` (public interface), `schemas.py` (API payloads), `router.py` (REST, mounted at `/api/catalog`), `seed.py` (demo data). Tests in `backend/tests/`.
+`backend/app/catalog/` — `models.py` (tables), `registry.py` (spec/topic bootstrap + manufacturer roster), `units.py` (conversion), `service.py` (public interface), `schemas.py` (API payloads), `router.py` (REST, mounted at `/api/catalog`), `seed.py` (demo data). Tests in `backend/tests/`.
 
 ## Status
 
-Implemented (v1): schema + Alembic migration, service layer, REST endpoints, idempotent seed, 51 tests. `data_coverage` reports research as pending only once the research module registers its provider hook.
+Implemented (v1): schema + Alembic migration, service layer, REST endpoints, idempotent seed (full 19-manufacturer roster + demo bikes). `data_coverage` reports research as pending only once the research module registers its provider hook.

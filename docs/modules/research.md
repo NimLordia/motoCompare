@@ -10,7 +10,7 @@ Fill missing data exactly once — both quantitative specs and qualitative insig
 
 ## Pipelines
 
-**Spec fact:** dedup → search → validate source & classify tier (manufacturer domain → `official`; reputable magazine/dyno test → `tested`; forums/owner reports → `community`; derived → `estimated`; the domain→tier map is code config) → parse value + unit → write through catalog's `upsert_spec_value` (validates against the registry, converts to canonical unit) → mark `found`.
+**Spec fact:** dedup → search → validate source & classify tier (manufacturer domain → `official`; reputable magazine/dyno test → `tested`; forums/owner reports → `community`; derived → `estimated`; the domain→tier map is code config — official domains derive from catalog's `MANUFACTURER_OFFICIAL_DOMAINS` roster, tested domains are listed in `tiering.py`) → parse value + unit → write through catalog's `upsert_spec_value` (validates against the registry, converts to canonical unit) → mark `found`.
 
 **Insight:** dedup → search community and long-term-test sources for the (bike, topic) → require at least one verifiable source URL → synthesize a per-topic summary from real owner/tester experience → write through `upsert_insight` with all source URLs. A summary without verifiable sources is `not_found`, never stored.
 
@@ -62,8 +62,8 @@ The enum lives in code; new reasons are added there and reflected here.
 
 ## Code map
 
-`backend/app/research/` — `models.py` (research_tasks table, failure taxonomy, retry policy), `tiering.py` (domain→tier map), `provider.py` (SearchProvider protocol + GeminiSearchProvider), `runner.py` (batched pipeline: dedup-checked execution, validation, conflict detection, writes via catalog), `executor.py` (thread-pool dispatcher with inline-await), `service.py` (public interface), `schemas.py`/`router.py` (REST at `/api/research`). Wiring (dispatcher + coverage hook) happens in `app/main.py`'s lifespan. Tests in `backend/tests/test_research_*.py` and `test_tiering.py`.
+`backend/app/research/` — `models.py` (research_tasks table, failure taxonomy, retry policy), `tiering.py` (domain→tier map; official domains come from catalog's manufacturer roster), `provider.py` (SearchProvider protocol + GeminiSearchProvider), `runner.py` (batched pipeline: dedup-checked execution, validation, conflict detection, writes via catalog), `executor.py` (thread-pool dispatcher with inline-await), `service.py` (public interface), `schemas.py`/`router.py` (REST at `/api/research`). Wiring (dispatcher + coverage hook) happens in `app/main.py`'s lifespan. Tests in `backend/tests/test_research_*.py` and `test_tiering.py`.
 
 ## Status
 
-Implemented (v1): schema + migration, two-phase Gemini provider (Google Search grounding → JSON-schema extraction; grounding redirects resolved so stored source URLs are the real pages), batched runner with full failure taxonomy, background executor, REST endpoints, 69 tests. Same-tier conflict tolerance and provider model/attempts/workers are `MOTO_`-prefixed settings.
+Implemented (v1): schema + migration, two-phase Gemini provider (Google Search grounding → JSON-schema extraction; grounding redirects resolved so stored source URLs are the real pages), batched runner with full failure taxonomy, background executor, REST endpoints. Same-tier conflict tolerance and provider model/attempts/workers are `MOTO_`-prefixed settings.

@@ -49,4 +49,6 @@ docker-compose.yml   PostgreSQL for local development
 
 2026-07-22 — Profile module implemented: single lazy-created local user, preferences (with the new `mixed` unit system, applied by catalog), garage with a database-enforced one-current invariant, dream bikes; REST + service layer, 36 tests (167 total). Next: chat (`get_profile` and `wait_for_research` are both ready for it).
 
+2026-07-22 — Manufacturer roster unified: `MANUFACTURER_OFFICIAL_DOMAINS` in the catalog registry is now the single source of truth for both the seeded manufacturer list and research's official-tier domains (the two had drifted: 19 vs. 6). Seed now creates all 19 manufacturers (190 tests total).
+
 2026-07-22 — Chat module implemented: SSE streaming endpoint, six-tool LangGraph agent on Gemini with the grounding hard rules, structured blocks reusing catalog payloads, hybrid inline/background research, per-conversation memory; 30 tests. Verified live against the Gemini API (tool loop, blocks, dual official/tested presentation). Next: the web SPA — every backend module it needs is now in place.

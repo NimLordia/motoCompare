@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog import service
 from app.catalog.models import Manufacturer, Model, Motorcycle, SpecDefinition
-from app.catalog.registry import SPEC_DEFINITIONS
+from app.catalog.registry import MANUFACTURER_OFFICIAL_DOMAINS, SPEC_DEFINITIONS
 from app.db import SessionLocal
 
 SEED_RETRIEVED_AT = datetime(2026, 7, 21, tzinfo=UTC)
@@ -55,6 +55,7 @@ _KAWASAKI = "https://www.kawasaki.eu"
 _BMW = "https://www.bmw-motorrad.com"
 _DUCATI = "https://www.ducati.com"
 _KTM = "https://www.ktm.com"
+_TRIUMPH = "https://www.triumphmotorcycles.co.uk"
 _CYCLEWORLD = "https://www.cycleworld.com"
 
 SEED_BIKES: list[SeedBike] = [
@@ -206,6 +207,72 @@ SEED_BIKES: list[SeedBike] = [
             _official("fuel_capacity", 15.0, "L", _KTM),
         ],
     ),
+    SeedBike(
+        "Triumph", "Speed Triple 1200", 2023, "RS", "EU",
+        specs=[
+            _official("engine_type", "Inline triple", None, _TRIUMPH),
+            _official("displacement", 1160, "cc", _TRIUMPH),
+            _official("power_peak", 132.4, "kW", _TRIUMPH),
+            _official("torque_peak", 125.0, "Nm", _TRIUMPH),
+            _official("wet_weight", 198, "kg", _TRIUMPH),
+            _official("seat_height", 830, "mm", _TRIUMPH),
+            _official("fuel_capacity", 15.5, "L", _TRIUMPH),
+            _official("wheelbase", 1445, "mm", _TRIUMPH),
+            _official("compression_ratio", 13.2, None, _TRIUMPH),
+        ],
+    ),
+    SeedBike(
+        "Yamaha", "MT-09", 2023, "SP", "EU",
+        specs=[
+            _official("engine_type", "Inline triple (CP3)", None, _YAMAHA),
+            _official("displacement", 889, "cc", _YAMAHA),
+            _official("power_peak", 87.5, "kW", _YAMAHA),
+            _official("torque_peak", 93.0, "Nm", _YAMAHA),
+            _official("wet_weight", 190, "kg", _YAMAHA),
+            _official("seat_height", 825, "mm", _YAMAHA),
+            _official("fuel_capacity", 14.0, "L", _YAMAHA),
+            _official("wheelbase", 1430, "mm", _YAMAHA),
+        ],
+    ),
+    SeedBike(
+        "Honda", "CB500X", 2023, "", "EU",
+        specs=[
+            _official("engine_type", "Parallel twin", None, _HONDA),
+            _official("displacement", 471, "cc", _HONDA),
+            _official("power_peak", 35.0, "kW", _HONDA),
+            _official("torque_peak", 43.0, "Nm", _HONDA),
+            _official("wet_weight", 199, "kg", _HONDA),
+            _official("seat_height", 830, "mm", _HONDA),
+            _official("fuel_capacity", 17.7, "L", _HONDA),
+            _official("wheelbase", 1445, "mm", _HONDA),
+        ],
+    ),
+    SeedBike(
+        "Honda", "CRF1000L Africa Twin", 2019, "", "EU",
+        specs=[
+            _official("engine_type", "Parallel twin, 270° crank", None, _HONDA),
+            _official("displacement", 998, "cc", _HONDA),
+            _official("power_peak", 70.0, "kW", _HONDA),
+            _official("torque_peak", 98.0, "Nm", _HONDA),
+            _official("wet_weight", 232, "kg", _HONDA),
+            _official("seat_height", 850, "mm", _HONDA),
+            _official("fuel_capacity", 18.8, "L", _HONDA),
+            _official("wheelbase", 1575, "mm", _HONDA),
+            _official("compression_ratio", 10.0, None, _HONDA),
+        ],
+        insights=[
+            SeedInsight(
+                "reliability",
+                "Long-distance owners regard the CRF1000L as one of the most dependable "
+                "big adventure bikes: the under-stressed SOHC twin routinely passes "
+                "50,000 km with nothing beyond scheduled maintenance. Early 2016 "
+                "examples drew stalling complaints resolved by a dealer ECU update; "
+                "later bikes are considered sorted.",
+                "community",
+                ["https://www.advrider.com/"],
+            ),
+        ],
+    ),
 ]
 
 
@@ -220,6 +287,14 @@ def seed_registry(db: Session) -> None:
         definition.value_type = definition_seed.value_type
         definition.category = definition_seed.category
         definition.is_core = definition_seed.is_core
+    db.flush()
+
+
+def seed_manufacturers(db: Session) -> None:
+    existing_names = set(db.scalars(select(Manufacturer.name)))
+    for name in MANUFACTURER_OFFICIAL_DOMAINS:
+        if name not in existing_names:
+            db.add(Manufacturer(name=name))
     db.flush()
 
 
@@ -290,9 +365,13 @@ def _get_or_create_variant(db: Session, seed_bike: SeedBike) -> Motorcycle:
 def run() -> None:
     with SessionLocal() as db:
         seed_registry(db)
+        seed_manufacturers(db)
         seed_bikes(db)
         db.commit()
-    print(f"seeded {len(SPEC_DEFINITIONS)} spec definitions and {len(SEED_BIKES)} bikes")
+    print(
+        f"seeded {len(SPEC_DEFINITIONS)} spec definitions, "
+        f"{len(MANUFACTURER_OFFICIAL_DOMAINS)} manufacturers, and {len(SEED_BIKES)} bikes"
+    )
 
 
 if __name__ == "__main__":

@@ -41,6 +41,32 @@ CORE_SPEC_KEYS: tuple[str, ...] = tuple(
     definition.key for definition in SPEC_DEFINITIONS if definition.is_core
 )
 
+# Manufacturer roster with each brand's official web domains. Single source of
+# truth for both the seeded manufacturer catalog and research's official-tier
+# domain matching (app.research.tiering derives OFFICIAL_DOMAINS from it), so
+# the two lists cannot drift apart.
+MANUFACTURER_OFFICIAL_DOMAINS: dict[str, frozenset[str]] = {
+    "Aprilia": frozenset({"aprilia.com"}),
+    "BMW": frozenset({"bmw-motorrad.com", "bmw-motorrad.de"}),
+    "CFMoto": frozenset({"cfmoto.com"}),
+    "Ducati": frozenset({"ducati.com"}),
+    "Harley-Davidson": frozenset({"harley-davidson.com"}),
+    "Honda": frozenset({"honda.co.uk", "honda.com"}),
+    "Husqvarna": frozenset({"husqvarna-motorcycles.com"}),
+    "Indian": frozenset({"indianmotorcycle.com"}),
+    "Kawasaki": frozenset({"kawasaki.com", "kawasaki.eu"}),
+    "KTM": frozenset({"ktm.com"}),
+    "Moto Guzzi": frozenset({"motoguzzi.com"}),
+    "MV Agusta": frozenset({"mvagusta.com"}),
+    "Piaggio": frozenset({"piaggio.com"}),
+    "Royal Enfield": frozenset({"royalenfield.com"}),
+    "Suzuki": frozenset({"suzuki.com", "suzukicycles.com"}),
+    "Triumph": frozenset({"triumphmotorcycles.co.uk", "triumphmotorcycles.com"}),
+    "Vespa": frozenset({"vespa.com"}),
+    "Yamaha": frozenset({"yamaha-motor.com", "yamaha-motor.eu", "yamahamotorsports.com"}),
+    "Zero": frozenset({"zeromotorcycles.com"}),
+}
+
 # All topics are core: data_coverage treats every topic as required for a complete bike page.
 INSIGHT_TOPICS: tuple[str, ...] = (
     "heat",

@@ -1,39 +1,19 @@
 from urllib.parse import urlparse
 
 from app.catalog.models import SourceType
+from app.catalog.registry import MANUFACTURER_OFFICIAL_DOMAINS
 
 # Domain → tier map (code config, per docs/modules/research.md). Matching is by
 # registrable domain: "www.yamaha-motor.eu" and "yamaha-motor.eu" both count.
 # Anything with a valid URL that matches neither list is community-tier.
 
-OFFICIAL_DOMAINS: frozenset[str] = frozenset({
-    "aprilia.com",
-    "bmw-motorrad.com",
-    "bmw-motorrad.de",
-    "cfmoto.com",
-    "ducati.com",
-    "harley-davidson.com",
-    "honda.co.uk",
-    "honda.com",
-    "husqvarna-motorcycles.com",
-    "indianmotorcycle.com",
-    "kawasaki.com",
-    "kawasaki.eu",
-    "ktm.com",
-    "motoguzzi.com",
-    "mvagusta.com",
-    "piaggio.com",
-    "royalenfield.com",
-    "suzuki.com",
-    "suzukicycles.com",
-    "triumphmotorcycles.co.uk",
-    "triumphmotorcycles.com",
-    "vespa.com",
-    "yamaha-motor.com",
-    "yamaha-motor.eu",
-    "yamahamotorsports.com",
-    "zeromotorcycles.com",
-})
+# Official domains come from the catalog's manufacturer roster, keeping the
+# tier map aligned with the manufacturers the catalog knows about.
+OFFICIAL_DOMAINS: frozenset[str] = frozenset(
+    domain
+    for domains in MANUFACTURER_OFFICIAL_DOMAINS.values()
+    for domain in domains
+)
 
 TESTED_DOMAINS: frozenset[str] = frozenset({
     "asphaltandrubber.com",

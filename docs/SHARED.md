@@ -20,6 +20,7 @@ Format: `symbol(signature)` — path — one-line purpose.
 - `SourceType` / `ValueType` / `SOURCE_TIER_PRIORITY` — backend/app/catalog/models.py — source tier enum + resolution order
 - `PortableJSON` — backend/app/catalog/models.py — JSON column type (JSONB variant on PostgreSQL) for dual-dialect models
 - `SPEC_DEFINITIONS` / `CORE_SPEC_KEYS` / `INSIGHT_TOPICS` — backend/app/catalog/registry.py — code bootstrap of the spec registry and topic list
+- `MANUFACTURER_OFFICIAL_DOMAINS` — backend/app/catalog/registry.py — manufacturer roster with official domains; feeds both the manufacturer seed and research's official-tier matching
 - research service (`request_research/populate_bike/get_task/get_tasks_for_bike/wait_for_research/pending_research_for_bike/configure_dispatcher`) — backend/app/research/service.py — the research public interface
 - `ResearchNotFoundError` / `ResearchValidationError` — backend/app/research/service.py — service exceptions, mapped to 404/422 in main.py
 - profile service (`get_profile/update_profile/list_garage/add_garage_bike/set_current_garage_bike/remove_garage_bike/list_dream_bikes/add_dream_bike/remove_dream_bike`) — backend/app/profile/service.py — the profile public interface
