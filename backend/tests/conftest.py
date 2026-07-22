@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 from app.catalog.models import Manufacturer, Model, Motorcycle
 from app.catalog.seed import seed_registry
 from app.db import Base
+from app.research.provider import ResearchFindings, SpecRequest
 
 
 @pytest.fixture()
@@ -57,3 +58,34 @@ def make_bike(db: Session):
         return bike
 
     return _make_bike
+
+
+class FakeSearchProvider:
+    """Scripted SearchProvider: returns `findings`, or raises `error` if set."""
+
+    def __init__(self) -> None:
+        self.findings = ResearchFindings()
+        self.error: Exception | None = None
+        self.calls: list[tuple[str, tuple[str, ...], tuple[str, ...]]] = []
+
+    def research(
+        self,
+        bike_description: str,
+        spec_requests: Sequence[SpecRequest],
+        insight_topics: Sequence[str],
+    ) -> ResearchFindings:
+        self.calls.append(
+            (
+                bike_description,
+                tuple(request.key for request in spec_requests),
+                tuple(insight_topics),
+            )
+        )
+        if self.error is not None:
+            raise self.error
+        return self.findings
+
+
+@pytest.fixture()
+def fake_provider() -> FakeSearchProvider:
+    return FakeSearchProvider()
